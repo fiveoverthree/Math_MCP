@@ -1,10 +1,19 @@
 """LaTeX and rendering utilities."""
 
-import base64
 import io
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sympy
+from fastmcp.utilities.types import Image
+from mcp.types import ImageContent
+
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+
+if TYPE_CHECKING:
+    from mcp.types import ImageContent
 
 
 def safe_latex(expr: Any) -> str:
@@ -15,22 +24,19 @@ def safe_latex(expr: Any) -> str:
         return str(expr)
 
 
-def latex_to_image_datauri(
+def latex_to_image_content(
     latex_str: str,
     fontsize: int = 14,
     dpi: int = 150,
-) -> str | None:
+) -> ImageContent:
     """
-    Render LaTeX to a base64-encoded PNG data URI.
+    Render LaTeX to an ImageContent object.
 
     Uses matplotlib's built-in mathtext renderer (no LaTeX installation needed).
-    Returns None if rendering fails.
+    Returns ImageContent on success, None on failure.
     """
     try:
-        import matplotlib
-
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(0.01, 0.01))
         text = ax.text(
@@ -73,7 +79,6 @@ def latex_to_image_datauri(
         plt.close(fig)
         buffer.seek(0)
 
-        encoded = base64.b64encode(buffer.read()).decode()
-        return f"data:image/png;base64,{encoded}"
+        return Image(data=buffer.read(), format="png").to_image_content()
     except Exception:
         return None

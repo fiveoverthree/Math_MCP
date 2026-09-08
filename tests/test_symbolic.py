@@ -2,6 +2,7 @@ import pytest
 
 from math_mcp.tools.symbolic import (
     dsolve,
+    eval_numeric,
     expand,
     factor,
     inverse_laplace,
@@ -45,6 +46,48 @@ async def test_simplify_constant_folding() -> None:
     result = await simplify(expression="2+2")
 
     assert result["result"] == "4"
+
+
+@pytest.mark.asyncio
+async def test_eval_numeric_pi() -> None:
+    result = await eval_numeric(expression="pi")
+
+    assert result["result"] == pytest.approx(3.14159265358979, abs=1e-14)
+    assert result.get("error") is None
+    assert result["precision"] == 15
+
+
+@pytest.mark.asyncio
+async def test_eval_numeric_sqrt2() -> None:
+    result = await eval_numeric(expression="sqrt(2)")
+
+    assert result["result"] == pytest.approx(1.414213562373095, abs=1e-14)
+    assert result.get("error") is None
+
+
+@pytest.mark.asyncio
+async def test_eval_numeric_combined() -> None:
+    result = await eval_numeric(expression="sqrt(2) + sin(pi/4)")
+
+    assert result["result"] == pytest.approx(1.414213562373095 + 0.7071067811865475, abs=1e-13)
+    assert result.get("error") is None
+
+
+@pytest.mark.asyncio
+async def test_eval_numeric_high_precision() -> None:
+    result = await eval_numeric(expression="pi", precision=25)
+
+    assert result["precision"] == 25
+    assert result["result"] == pytest.approx(3.141592653589793, abs=1e-24)
+    assert result.get("error") is None
+
+
+@pytest.mark.asyncio
+async def test_eval_numeric_simplify_first() -> None:
+    result = await eval_numeric(expression="(2 + 2)")
+
+    assert result["result"] == pytest.approx(4.0, abs=1e-14)
+    assert result.get("error") is None
 
 
 @pytest.mark.asyncio

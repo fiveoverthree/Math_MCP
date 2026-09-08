@@ -5,7 +5,7 @@ description = "Extremely powerful MCP server for symbolic, numerical, and GPU-ac
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "mcp>=1.0.0",
+    "fastmcp==3.4.7",
     "sympy>=1.13",
     "numpy>=1.26",
     "scipy>=1.11",

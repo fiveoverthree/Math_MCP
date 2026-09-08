@@ -779,7 +779,7 @@ async def random_sample(
     flattened = sample_array.reshape(-1)
     response = {
         "result": f"Generated {size} {distribution} samples",
-        "samples": flattened[:20].tolist(),
+        "samples": flattened[:2000].tolist(),
         "sample_stats": {
             "mean": float(np.mean(flattened)),
             "std": float(np.std(flattened, ddof=1 if flattened.size > 1 else 0)),

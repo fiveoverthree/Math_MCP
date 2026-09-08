@@ -107,6 +107,7 @@ Any host that supports stdio MCP servers can run this project with the same comm
 | Tool | Description |
 | --- | --- |
 | `simplify` | Simplify algebraic, trigonometric, and rational expressions. |
+| `eval_numeric` | Evaluate constant symbolic expressions to floating-point numbers. |
 | `expand` | Expand products, powers, and composite symbolic expressions. |
 | `factor` | Factor polynomials and integers into structured symbolic factors. |
 | `solve` | Solve equations, systems, and inequalities over configurable domains. |

@@ -15,12 +15,17 @@ import asyncio
 import logging
 import sys
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 from .config import hw_config
 from .tools import discrete, gpu, graphs, linalg, numerical, rendering, statistics, symbolic
 
 logger = logging.getLogger(__name__)
+
+# Create the MCP server at module level so decorators can attach to it
+server = FastMCP("math-mcp-server")
 
 
 def setup_logging() -> None:
@@ -38,6 +43,12 @@ def setup_logging() -> None:
     root.addHandler(handler)
 
 
+@server.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> PlainTextResponse:
+    """Health check endpoint for Docker healthcheck."""
+    return PlainTextResponse("OK")
+
+
 def register_all_tools(server: FastMCP) -> None:
     """Register all tool families with the MCP server."""
     symbolic.register(server)
@@ -51,21 +62,20 @@ def register_all_tools(server: FastMCP) -> None:
 
 
 async def serve() -> None:
-    """Run the Math MCP server over stdio transport."""
+    """Run the Math MCP server over Streamable HTTP transport."""
     setup_logging()
     logger.info("%s", "=" * 60)
     logger.info("Math MCP Server starting...")
     logger.info("Hardware: %s", hw_config.to_dict())
     logger.info("%s", "=" * 60)
 
-    server = FastMCP("math-mcp-server")
     register_all_tools(server)
-    await server.run_stdio_async()
 
 
 def main() -> None:
     """Synchronous entry point for console scripts and MCP hosts."""
     asyncio.run(serve())
+    server.run("streamable-http", host="0.0.0.0", port=8000, show_banner=False)
 
 
 def run() -> None:

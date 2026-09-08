@@ -1,6 +1,5 @@
 """Rendering and visualization tools using matplotlib and SymPy."""
 
-import base64
 import io
 import logging
 from typing import Any
@@ -17,21 +16,24 @@ from sympy.core.relational import Relational
 
 from ..utils.parsing import parse_expression
 from ..utils.errors import tool_error_handler
-from ..utils.latex_utils import safe_latex, latex_to_image_datauri
+from ..utils.latex_utils import safe_latex, latex_to_image_content
+from fastmcp.utilities.types import Image
+from mcp.types import ImageContent
 
 logger = logging.getLogger(__name__)
 
 
-def _figure_to_data_uri(fig: plt.Figure, *, dpi: int = 150) -> tuple[str, int, int]:
+def _figure_to_image_content(fig: plt.Figure, *, dpi: int = 150) -> Image:
+    """Convert a matplotlib Figure to an ImageContent object."""
+
     buffer = io.BytesIO()
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
-    width, height = canvas.get_width_height()
     fig.savefig(buffer, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
     buffer.seek(0)
-    encoded = base64.b64encode(buffer.read()).decode()
-    return f"data:image/png;base64,{encoded}", int(width), int(height)
+
+    return Image(data=buffer.read(), format="png").to_image_content()
 
 
 def _plot_style(dark_mode: bool) -> dict[str, str]:
@@ -98,8 +100,8 @@ def _parse_implicit_equation(equation: str) -> tuple[sympy.Basic, str | None]:
 async def to_latex(
     expression: str,
     style: str = "inline",
-) -> dict[str, Any]:
-    """Convert a mathematical expression to LaTeX and render it."""
+) -> ImageContent:
+    """Convert a mathematical expression to LaTeX and render it.Note: the "results" part of the response will be empty. This is expected and does not indicate tool failure."""
     expr = parse_expression(expression)
     normalized_style = style.lower()
     if normalized_style == "inline":
@@ -110,13 +112,7 @@ async def to_latex(
         latex = safe_latex(expr)
     else:
         raise ValueError("style must be one of: inline, display, plain")
-    rendered = latex_to_image_datauri(latex)
-    return {
-        "result": latex,
-        "latex": latex,
-        "rendered": rendered,
-        "style": normalized_style,
-    }
+    return latex_to_image_content(latex)
 
 
 @tool_error_handler("render_math")
@@ -124,27 +120,19 @@ async def render_math(
     latex: str,
     fontsize: int = 16,
     dpi: int = 150,
-) -> dict[str, Any]:
-    """Render arbitrary LaTeX math to a PNG data URI."""
-    data_uri = latex_to_image_datauri(latex, fontsize=fontsize, dpi=dpi)
-    if data_uri is None:
+) -> ImageContent:
+    """Render arbitrary LaTeX math to an ImageContent.Note: the "results" part of the response will be empty. This is expected and does not indicate tool failure."""
+    image_content = latex_to_image_content(latex, fontsize=fontsize, dpi=dpi)
+    if image_content is None:
         return {
             "result": "Rendering failed; returning raw LaTeX",
-            "data_uri": None,
+            "image_content": None,
             "width": None,
             "height": None,
             "latex": latex,
             "warning": "matplotlib mathtext could not render the provided LaTeX",
         }
-
-    return {
-        "result": f"Rendered LaTeX ({fontsize}pt, {dpi}dpi)",
-        "data_uri": data_uri,
-        "width": None,
-        "height": None,
-        "latex": latex,
-    }
-
+    return image_content
 
 @tool_error_handler("plot_function")
 async def plot_function(
@@ -158,8 +146,8 @@ async def plot_function(
     grid: bool = True,
     dark_mode: bool = False,
     figsize: list[int] | None = None,
-) -> dict[str, Any]:
-    """Plot one or more functions as 2D curves."""
+) -> ImageContent:
+    """Plot one or more functions as 2D curves.Note: the "results" part of the response will be empty. This is expected and does not indicate tool failure."""
     expressions = [expression] if isinstance(expression, str) else expression
     if not expressions:
         raise ValueError("expression must not be empty")
@@ -199,13 +187,7 @@ async def plot_function(
     ax.set_xlabel(xlabel or variable, color=style["text_color"])
     ax.set_ylabel(ylabel or "f(x)", color=style["text_color"])
 
-    data_uri, _, _ = _figure_to_data_uri(fig)
-    return {
-        "result": f"Plot of {', '.join(expressions)} from {chosen_range[0]} to {chosen_range[1]}",
-        "data_uri": data_uri,
-        "x_range": [float(chosen_range[0]), float(chosen_range[1])],
-        "latex": None,
-    }
+    return _figure_to_image_content(fig)
 
 
 @tool_error_handler("plot_implicit")
@@ -216,8 +198,8 @@ async def plot_implicit(
     grid_size: int = 200,
     title: str = "",
     dark_mode: bool = False,
-) -> dict[str, Any]:
-    """Plot implicit equations or inequalities in x and y."""
+) -> ImageContent:
+    """Plot implicit equations or inequalities in x and y. Note: the "results" part of the response will be empty. This is expected and does not indicate tool failure."""
     parsed, relation = _parse_implicit_equation(equation)
     x_bounds = x_range or [-5.0, 5.0]
     y_bounds = y_range or [-5.0, 5.0]
@@ -254,14 +236,7 @@ async def plot_implicit(
     ax.set_title(title or f"Implicit plot of {equation}", color=style["text_color"])
     ax.set_xlabel("x", color=style["text_color"])
     ax.set_ylabel("y", color=style["text_color"])
-    data_uri, _, _ = _figure_to_data_uri(fig)
-    return {
-        "result": f"Implicit plot of {equation}",
-        "data_uri": data_uri,
-        "x_range": [float(x_bounds[0]), float(x_bounds[1])],
-        "y_range": [float(y_bounds[0]), float(y_bounds[1])],
-        "latex": None,
-    }
+    return _figure_to_image_content(fig)
 
 
 def register(server: Any) -> None:

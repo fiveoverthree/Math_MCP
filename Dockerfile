@@ -9,7 +9,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ src/
 
-RUN uv pip install --system -e ".[gpu]"
+RUN uv pip install --system -e .
 
 COPY tests/ tests/
 

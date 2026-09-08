@@ -609,6 +609,36 @@ async def simplify(expression: str) -> dict[str, Any]:
     return expr_to_result_dict(result)
 
 
+@tool_error_handler("eval_numeric")
+async def eval_numeric(
+    expression: str,
+    precision: int = 15,
+) -> dict[str, Any]:
+    """
+    Evaluate a mathematical expression to a floating-point number.
+
+    Args:
+        expression: A SymPy-compatible expression string.
+                    Examples: "pi", "sqrt(2) + sin(pi/4)", "E**pi"
+        precision: Number of significant digits for the result (default 15).
+
+    Returns:
+        Dictionary with the float value and precision used.
+    """
+    expr = parse_expression(expression)
+    result = sympy.simplify(expr)
+    if expr.is_number:
+        result = sympy.sympify(result)
+
+    numeric_result = sympy.N(result, precision)
+    float_value = float(numeric_result)
+
+    return {
+        "result": float_value,
+        "precision": precision,
+    }
+
+
 @tool_error_handler("expand")
 async def expand(expression: str) -> dict[str, Any]:
     """
@@ -1066,6 +1096,7 @@ async def inverse_laplace(
 def register(server: Any) -> None:
     """Register all symbolic tools with the MCP server."""
     server.tool("simplify")(simplify)
+    server.tool("eval_numeric")(eval_numeric)
     server.tool("expand")(expand)
     server.tool("factor")(factor)
     server.tool("solve")(solve)
