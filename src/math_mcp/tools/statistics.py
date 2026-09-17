@@ -45,7 +45,6 @@ _RANDOM_ALIASES: dict[str, str] = {
     "beta": "beta",
     "gamma": "gamma",
     "lognormal": "lognormal",
-    "integer": "randint",
     "multivariate_normal": "multivariate_normal",
     "dirichlet": "dirichlet",
     "wishart": "wishart",
@@ -731,6 +730,59 @@ async def bootstrap(
     return response
 
 
+@tool_error_handler("random_choice")
+async def random_choice(
+    data: list[Any],
+    count: int = 1,
+    replace: bool = True,
+    random_state: int | None = None,
+) -> dict[str, Any]:
+    """Randomly choose elements from a list with uniform probability.
+
+    Args:
+        data: List of items to choose from (any type, must not be empty).
+        count: Number of items to select (positive integer, default 1).
+        replace: Whether to sample with replacement (default True).
+        random_state: Optional seed for reproducibility.
+
+    Returns:
+        A dict with keys ``result`` (summary string), ``chosen`` (the selected
+        items) and ``counts`` (frequency of each element when count <= 200).
+
+    Raises:
+        ValueError: If ``data`` is empty, ``count`` is not positive,
+            or ``count`` exceeds ``len(data)`` when ``replace=False``.
+
+    Examples:
+        - Choose 5 items with replacement (default):
+          ``random_choice(data=[1, 2, 3, 4, 5], count=5)``
+        - Choose 3 unique items (no replacement):
+          ``random_choice(data=[1, 2, 3, 4, 5], count=3, replace=False)``
+        - Choose from strings:
+          ``random_choice(data=[\"apple\", \"banana\", \"cherry\"], count=10)``
+    """
+    if not data:
+        raise ValueError("data must not be empty")
+    if count < 1:
+        raise ValueError("count must be positive")
+    if not replace and count > len(data):
+        raise ValueError("count cannot exceed data length when replace=False")
+    rng = np.random.default_rng(random_state)
+    indices = rng.choice(len(data), size=count, replace=replace)
+    chosen = [data[int(i)] for i in indices]
+    counts: dict[str, int] = {}
+    if replace and count <= 200:
+        for val in chosen:
+            key = str(val)
+            counts[key] = counts.get(key, 0) + 1
+    return {
+        "result": f"Chosen {count} item{'s' if count != 1 else ''} from {len(data)} options",
+        "chosen": chosen,
+        "counts": counts if counts else None,
+        "latex": None,
+    }
+
+
 @tool_error_handler("random_sample")
 async def random_sample(
     distribution: str = "uniform",
@@ -759,8 +811,6 @@ async def random_sample(
               Parameters: shape / k (default 1.0), scale (default 1.0).
             - ``lognormal``: Log-normal distribution.
               Parameters: mean (default 0.0), sigma (default 1.0).
-            - ``integer``: Random integers in [low, high) using uniform distribution.
-              Parameters: low (default 0), high (default 10).
             - ``multivariate_normal``: Multivariate normal distribution.
               Parameters: mean (default [0]*dimensions), cov (default identity).
             - ``dirichlet``: Dirichlet distribution.
@@ -803,10 +853,6 @@ async def random_sample(
         samples = rng.gamma(params.get("shape", params.get("k", 1.0)), params.get("scale", 1.0), size=size)
     elif name == "lognormal":
         samples = rng.lognormal(params.get("mean", 0.0), params.get("sigma", 1.0), size=size)
-    elif name == "integer":
-        low = int(params.get("low", 0))
-        high = int(params.get("high", 10))
-        samples = rng.integers(low, high, size=size)
     elif name == "multivariate_normal":
         mean = np.asarray(params.get("mean", [0.0] * dimensions), dtype=float)
         cov = np.asarray(params.get("cov", np.eye(dimensions).tolist()), dtype=float)
@@ -845,4 +891,5 @@ def register(server: Any) -> None:
     server.tool("hypothesis_test")(hypothesis_test)
     server.tool("regression")(regression)
     server.tool("bootstrap")(bootstrap)
+    server.tool("random_choice")(random_choice)
     server.tool("random_sample")(random_sample)

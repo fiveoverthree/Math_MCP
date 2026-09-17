@@ -8,6 +8,7 @@ from math_mcp.tools.statistics import (
     describe,
     distribution,
     hypothesis_test,
+    random_choice,
     random_sample,
     regression,
 )
@@ -133,7 +134,7 @@ async def test_bootstrap_mean_ci() -> None:
 @pytest.mark.asyncio
 async def test_random_sample_normal() -> None:
     result = await random_sample(distribution="normal", size=1000, random_state=42)
-    assert len(result["samples"]) == 20
+    assert len(result["samples"]) == 1000
     assert result["sample_stats"]["mean"] == pytest.approx(0.0, abs=0.1)
 
 
@@ -142,3 +143,54 @@ async def test_random_sample_uniform() -> None:
     result = await random_sample(distribution="uniform", params={"low": 0.0, "high": 10.0}, size=100, random_state=42)
     assert 0 <= min(result["samples"]) <= 10
     assert 0 <= max(result["samples"]) <= 10
+
+
+# --- random_choice ---
+
+
+@pytest.mark.asyncio
+async def test_random_choice_basic() -> None:
+    result = await random_choice(data=[1, 2, 3, 4, 5], count=5, random_state=42)
+    assert len(result["chosen"]) == 5
+    assert all(v in [1, 2, 3, 4, 5] for v in result["chosen"])
+    assert result["seed"] == 42
+
+
+@pytest.mark.asyncio
+async def test_random_choice_no_replacement() -> None:
+    result = await random_choice(data=[1, 2, 3, 4, 5], count=5, replace=False, random_state=42)
+    assert sorted(result["chosen"]) == [1, 2, 3, 4, 5]
+    assert len(result["chosen"]) == 5
+
+
+@pytest.mark.asyncio
+async def test_random_choice_strings() -> None:
+    result = await random_choice(data=["apple", "banana", "cherry"], count=3, random_state=42)
+    assert len(result["chosen"]) == 3
+    assert all(v in ["apple", "banana", "cherry"] for v in result["chosen"])
+
+
+@pytest.mark.asyncio
+async def test_random_choice_empty_data() -> None:
+    result = await random_choice(data=[], count=1)
+    assert result["error"] is not None
+
+
+@pytest.mark.asyncio
+async def test_random_choice_invalid_count() -> None:
+    result = await random_choice(data=[1, 2, 3], count=0)
+    assert result["error"] is not None
+
+
+@pytest.mark.asyncio
+async def test_random_choice_count_exceeds_without_replacement() -> None:
+    result = await random_choice(data=[1, 2, 3], count=5, replace=False)
+    assert result["error"] is not None
+
+
+@pytest.mark.asyncio
+async def test_random_choice_counts() -> None:
+    result = await random_choice(data=[1, 2, 3], count=100, random_state=42)
+    assert result["counts"] is not None
+    total = sum(result["counts"].values())
+    assert total == 100
