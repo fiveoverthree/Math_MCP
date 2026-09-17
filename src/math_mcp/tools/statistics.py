@@ -45,6 +45,7 @@ _RANDOM_ALIASES: dict[str, str] = {
     "beta": "beta",
     "gamma": "gamma",
     "lognormal": "lognormal",
+    "integer": "randint",
     "multivariate_normal": "multivariate_normal",
     "dirichlet": "dirichlet",
     "wishart": "wishart",
@@ -738,7 +739,46 @@ async def random_sample(
     dimensions: int = 1,
     random_state: int | None = None,
 ) -> dict[str, Any]:
-    """Generate random samples from NumPy distributions."""
+    """Generate random samples from NumPy distributions.
+
+    Args:
+        distribution: Name of the distribution. Supported values:
+            - ``uniform``: Uniform distribution on [low, high).
+              Parameters: low (default 0.0), high (default 1.0).
+            - ``normal``: Normal (Gaussian) distribution.
+              Parameters: loc (default 0.0), scale (default 1.0).
+            - ``exponential``: Exponential distribution.
+              Parameters: scale (default 1.0).
+            - ``poisson``: Poisson distribution.
+              Parameters: lam / mu (default 1.0).
+            - ``binomial``: Binomial distribution.
+              Parameters: n (default 1), p (default 0.5).
+            - ``beta``: Beta distribution.
+              Parameters: a (default 1.0), b (default 1.0).
+            - ``gamma``: Gamma distribution.
+              Parameters: shape / k (default 1.0), scale (default 1.0).
+            - ``lognormal``: Log-normal distribution.
+              Parameters: mean (default 0.0), sigma (default 1.0).
+            - ``integer``: Random integers in [low, high) using uniform distribution.
+              Parameters: low (default 0), high (default 10).
+            - ``multivariate_normal``: Multivariate normal distribution.
+              Parameters: mean (default [0]*dimensions), cov (default identity).
+            - ``dirichlet``: Dirichlet distribution.
+              Parameters: alpha (default [1]*dimensions).
+            - ``wishart``: Wishart distribution.
+              Parameters: df (default dimensions), scale (default identity).
+        params: Optional dict of distribution-specific parameters. Keys vary by
+            distribution (see above). Any key not provided falls back to the
+            stated default.
+        size: Number of samples to generate (positive integer, default 10).
+        dimensions: Number of dimensions for multivariate distributions like
+            ``multivariate_normal``, ``dirichlet``, and ``wishart`` (default 1).
+        random_state: Optional seed for reproducibility.
+
+    Returns:
+        A dict with keys ``result`` (summary string), ``samples`` (flattened
+        sample values, up to 2000), and ``sample_stats`` (mean and std).
+    """
     if size < 1:
         raise ValueError("size must be positive")
     rng = np.random.default_rng(random_state)
@@ -763,6 +803,10 @@ async def random_sample(
         samples = rng.gamma(params.get("shape", params.get("k", 1.0)), params.get("scale", 1.0), size=size)
     elif name == "lognormal":
         samples = rng.lognormal(params.get("mean", 0.0), params.get("sigma", 1.0), size=size)
+    elif name == "integer":
+        low = int(params.get("low", 0))
+        high = int(params.get("high", 10))
+        samples = rng.integers(low, high, size=size)
     elif name == "multivariate_normal":
         mean = np.asarray(params.get("mean", [0.0] * dimensions), dtype=float)
         cov = np.asarray(params.get("cov", np.eye(dimensions).tolist()), dtype=float)
