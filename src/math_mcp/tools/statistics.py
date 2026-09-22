@@ -734,7 +734,7 @@ async def bootstrap(
 async def random_choice(
     data: list[Any],
     count: int = 1,
-    replace: bool = True,
+    replace: bool = False,
     random_state: int | None = None,
 ) -> dict[str, Any]:
     """Randomly choose elements from a list with uniform probability.
